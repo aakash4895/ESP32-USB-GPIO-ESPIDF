@@ -20,8 +20,10 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 
-TaskHandle_t gpioTaskHandle = NULL;
-bool isrInstalled = false;
+static TaskHandle_t gpioTaskHandle = NULL;
+static bool isrInstalled = false;
+static bool gpioInitialized[GPIO_NUM_MAX] = {false};
+static bool gpioOutputState[GPIO_NUM_MAX] = {false};
 
 /**
  * @brief GPIO interrupt service routine handler
@@ -44,12 +46,20 @@ static void gpioISRHandler(void *arg)
  */
 static void gpioTask(void *pvParameters)
 {
+    uint64_t ioOutput = 0;
     // GPIO task implementation
     while (1) {
-        gpio_set_level(GPIO_NUM_2, 1);
-        vTaskDelay(pdMS_TO_TICKS(1000));
-        gpio_set_level(GPIO_NUM_2, 0);
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        for(int i=0; i< GPIO_NUM_MAX; i++) {
+            int level = gpio_get_level((gpio_num_t)i);
+            // Update output state
+            if (level == 1) {
+                ioOutput |= (1ULL << i);
+            } else {
+                ioOutput &= ~(1ULL << i);
+            }
+        }
+        printf("IN_GPIO_LEVEL:0x%" PRIx64 "\n", ioOutput);
+        vTaskDelay(pdMS_TO_TICKS(1000)); // Delay for 1 second
     }
 }
 
@@ -81,24 +91,21 @@ void gpioTaskDeinit(void)
  * @brief Initialize GPIO pins with specified configuration
  * 
  * @param num GPIO number
- * @param mode GPIO mode (input/output)
- * @param pull_up GPIO pull-up configuration
- * @param pull_down GPIO pull-down configuration
- * @param intr_type GPIO interrupt type
+ * @param gpio_config_t gpio_config_t structure containing GPIO configuration
  */
-void gpioInit(gpio_num_t num, gpio_mode_t mode, gpio_pullup_t pull_up, gpio_pulldown_t pull_down, gpio_int_type_t intr_type)
+void gpioInit(gpio_num_t num, gpio_config_t config)
 {
     // Initialize GPIO pins
     gpio_config_t io_conf = {
-        .pin_bit_mask = (1ULL << num),
-        .mode = mode,
-        .pull_up_en = pull_up,
-        .pull_down_en = pull_down,
-        .intr_type = intr_type
+        .pin_bit_mask = config.pin_bit_mask,
+        .mode = config.mode,
+        .pull_up_en = config.pull_up_en,
+        .pull_down_en = config.pull_down_en,
+        .intr_type = config.intr_type
     };
     gpio_config(&io_conf);
 
-    if(intr_type != GPIO_INTR_DISABLE) {
+    if(config.intr_type != GPIO_INTR_DISABLE) {
         // Enable GPIO interrupt if specified
         if (!isrInstalled) {
             gpio_install_isr_service(0);
@@ -106,6 +113,7 @@ void gpioInit(gpio_num_t num, gpio_mode_t mode, gpio_pullup_t pull_up, gpio_pull
         }
         gpio_isr_handler_add(num, gpioISRHandler, (void *)num);
     }
+    gpioInitialized[num] = true;
 }
 
 /**
@@ -117,7 +125,11 @@ void gpioInit(gpio_num_t num, gpio_mode_t mode, gpio_pullup_t pull_up, gpio_pull
  */
 esp_err_t gpioSetLevel(gpio_num_t gpio_num, uint32_t level)
 {
+    if(isGpioInitialized(gpio_num) == false) {
+        return ESP_ERR_INVALID_ARG;
+    }
     // Set GPIO level
+    gpioOutputState[gpio_num] = (level != 0);
     return gpio_set_level(gpio_num, level);
 }
 
@@ -131,4 +143,40 @@ int gpioGetLevel(gpio_num_t gpio_num)
 {
     // Get GPIO level
     return gpio_get_level(gpio_num);
+}
+
+/**
+ * @brief Toggle GPIO level
+ * 
+ * @param gpio_num 
+ * @return esp_err_t Error code
+ */
+esp_err_t gpioToggleLevel(gpio_num_t gpio_num)
+{
+    if(isGpioInitialized(gpio_num) == false) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    // Toggle GPIO level
+    if (gpioInitialized[gpio_num]) {
+        int currentLevel = gpioOutputState[gpio_num];
+        gpioOutputState[gpio_num] = !currentLevel; // Update output state
+        return gpioSetLevel(gpio_num, !currentLevel);
+    } else {
+        return ESP_ERR_INVALID_ARG;
+    }
+}
+
+/**
+ * @brief Check if GPIO pin is initialized
+ * 
+ * @param gpio_num GPIO number
+ * @return true if GPIO pin is initialized, false otherwise
+ */
+bool isGpioInitialized(gpio_num_t gpio_num)
+{
+    // Check if GPIO pin is initialized
+    if (gpio_num < GPIO_NUM_MAX) {
+        return gpioInitialized[gpio_num];
+    }
+    return false;
 }

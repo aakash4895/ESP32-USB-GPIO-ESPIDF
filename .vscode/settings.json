@@ -19,6 +19,8 @@
     "gpio.h": "c",
     "stdio.h": "c",
     "gpio_man.h": "c",
-    "main.h": "c"
+    "main.h": "c",
+    "task.h": "c",
+    "ratio": "c"
   }
 }

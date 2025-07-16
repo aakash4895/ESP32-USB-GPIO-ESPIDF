@@ -11,6 +11,7 @@
 
 #include "main.h"
 #include "gpio_man.h"
+#include "uart_man.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -24,18 +25,15 @@ TaskHandle_t mainTaskHandle = NULL;
 
 void app_main(void)
 {
-    
-    // Initialize GPIO pins
-    gpioInit(TEST_GPIO_NUM, GPIO_MODE_OUTPUT, GPIO_PULLUP_ENABLE, GPIO_PULLDOWN_DISABLE, GPIO_INTR_DISABLE);
-    
-    
-    while(true){
-        // Set GPIO level to high
-        gpioSetLevel(TEST_GPIO_NUM, 1);
-        vTaskDelay(pdMS_TO_TICKS(1000)); // Delay for 1 second
-        
-        // Set GPIO level to low
-        gpioSetLevel(TEST_GPIO_NUM, 0);
+    // Initialize UART task
+    uartTaskInit();
+
+    // Initialize GPIO task
+    gpioTaskInit();
+
+    while(1) {
+        // Main loop implementation
+        // printf("Main task running...\n");
         vTaskDelay(pdMS_TO_TICKS(1000)); // Delay for 1 second
     }
 
