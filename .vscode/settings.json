@@ -14,5 +14,11 @@
     "--background-index",
     "--query-driver=/home/aakash/.espressif/tools/xtensa-esp-elf/esp-14.2.0_20241119/xtensa-esp-elf/bin/xtensa-esp32-elf-gcc",
     "--compile-commands-dir=${workspaceFolder}/build"
-  ]
+  ],
+  "files.associations": {
+    "gpio.h": "c",
+    "stdio.h": "c",
+    "gpio_man.h": "c",
+    "main.h": "c"
+  }
 }
