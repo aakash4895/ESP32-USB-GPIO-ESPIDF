@@ -40,61 +40,15 @@ static void gpioISRHandler(void *arg)
 }
 
 /**
- * @brief GPIO task function that runs in a FreeRTOS task
- * 
- * @param pvParameters 
- */
-static void gpioTask(void *pvParameters)
-{
-    uint64_t ioOutput = 0;
-    // GPIO task implementation
-    while (1) {
-        for(int i=0; i< GPIO_NUM_MAX; i++) {
-            int level = gpio_get_level((gpio_num_t)i);
-            // Update output state
-            if (level == 1) {
-                ioOutput |= (1ULL << i);
-            } else {
-                ioOutput &= ~(1ULL << i);
-            }
-        }
-        printf("IN_GPIO_LEVEL:0x%" PRIx64 "\n", ioOutput);
-        vTaskDelay(pdMS_TO_TICKS(1000)); // Delay for 1 second
-    }
-}
-
-/**
- * @brief Initialize GPIO task and create a FreeRTOS task for GPIO operations
- * 
- */
-void gpioTaskInit(void)
-{
-    // Create GPIO task
-    xTaskCreate(gpioTask, "gpioTask", 2048, NULL, 5, &gpioTaskHandle);
-}
-
-/**
- * @brief Deinitialize GPIO task and clean up resources
- * 
- */
-void gpioTaskDeinit(void)
-{
-    // Delete GPIO task if it exists
-    if (gpioTaskHandle != NULL) {
-        vTaskDelete(gpioTaskHandle);
-        gpioTaskHandle = NULL;
-    }
-}
-
-
-/**
  * @brief Initialize GPIO pins with specified configuration
  * 
  * @param num GPIO number
  * @param gpio_config_t gpio_config_t structure containing GPIO configuration
+ * @return esp_err_t Error code
  */
-void gpioInit(gpio_num_t num, gpio_config_t config)
+esp_err_t gpioInit(gpio_num_t num, gpio_config_t config)
 {
+    esp_err_t ret = ESP_OK;
     // Initialize GPIO pins
     gpio_config_t io_conf = {
         .pin_bit_mask = config.pin_bit_mask,
@@ -103,17 +57,27 @@ void gpioInit(gpio_num_t num, gpio_config_t config)
         .pull_down_en = config.pull_down_en,
         .intr_type = config.intr_type
     };
-    gpio_config(&io_conf);
+    ret = gpio_config(&io_conf);
+    if (ret != ESP_OK) {
+        return ret;
+    }
 
     if(config.intr_type != GPIO_INTR_DISABLE) {
         // Enable GPIO interrupt if specified
         if (!isrInstalled) {
-            gpio_install_isr_service(0);
+            ret = gpio_install_isr_service(0);
+            if (ret != ESP_OK) {
+                return ret;
+            }
             isrInstalled = true;
         }
-        gpio_isr_handler_add(num, gpioISRHandler, (void *)num);
+        ret = gpio_isr_handler_add(num, gpioISRHandler, (void *)num);
+        if (ret != ESP_OK) {
+            return ret;
+        }
     }
     gpioInitialized[num] = true;
+    return ret;
 }
 
 /**
@@ -126,7 +90,7 @@ void gpioInit(gpio_num_t num, gpio_config_t config)
 esp_err_t gpioSetLevel(gpio_num_t gpio_num, uint32_t level)
 {
     if(isGpioInitialized(gpio_num) == false) {
-        return ESP_ERR_INVALID_ARG;
+        return ESP_ERR_INVALID_STATE;
     }
     // Set GPIO level
     gpioOutputState[gpio_num] = (level != 0);
@@ -141,6 +105,9 @@ esp_err_t gpioSetLevel(gpio_num_t gpio_num, uint32_t level)
  */
 int gpioGetLevel(gpio_num_t gpio_num)
 {
+    if(isGpioInitialized(gpio_num) == false) {
+        return ESP_ERR_INVALID_STATE;
+    }
     // Get GPIO level
     return gpio_get_level(gpio_num);
 }
@@ -154,7 +121,7 @@ int gpioGetLevel(gpio_num_t gpio_num)
 esp_err_t gpioToggleLevel(gpio_num_t gpio_num)
 {
     if(isGpioInitialized(gpio_num) == false) {
-        return ESP_ERR_INVALID_ARG;
+        return ESP_ERR_INVALID_STATE;
     }
     // Toggle GPIO level
     if (gpioInitialized[gpio_num]) {
@@ -162,7 +129,7 @@ esp_err_t gpioToggleLevel(gpio_num_t gpio_num)
         gpioOutputState[gpio_num] = !currentLevel; // Update output state
         return gpioSetLevel(gpio_num, !currentLevel);
     } else {
-        return ESP_ERR_INVALID_ARG;
+        return ESP_ERR_INVALID_STATE;
     }
 }
 

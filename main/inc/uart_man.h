@@ -21,9 +21,8 @@
 #define UART_RX_PIN GPIO_NUM_1
 #define UART_BAUD_RATE 115200
 
-void uartTaskInit(void);
-void uartTaskDeinit(void);
-void uartInit(uart_port_t uart_num, int tx_pin, int rx_pin, int baud_rate);
-esp_err_t uartSendData(const char *data, size_t length);
+#define UART_MAX_READ_LEN 256
+
+void uartInit(void);
 
 #endif // UART Manager

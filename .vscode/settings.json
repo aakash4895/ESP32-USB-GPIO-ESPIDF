@@ -21,6 +21,8 @@
     "gpio_man.h": "c",
     "main.h": "c",
     "task.h": "c",
-    "ratio": "c"
-  }
+    "ratio": "c",
+    "uart_man.h": "c"
+  },
+  "idf.flashType": "UART"
 }
