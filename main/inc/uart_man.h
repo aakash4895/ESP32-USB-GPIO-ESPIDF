@@ -1,7 +1,6 @@
 /**
  * @file uart_man.h
  * @author Aakash Singh
-/**
  * @brief UART Manager Header File
  *
  * This file contains the declarations and documentation for UART management functions,
