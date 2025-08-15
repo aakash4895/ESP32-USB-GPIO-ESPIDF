@@ -90,13 +90,16 @@ static void appTask(void *pvParameters)
     
     // UART task implementation
     while (1) {
+        ioOutput = 0; // Reset output state at the beginning of each cycle
         for(int i=0; i< GPIO_NUM_MAX; i++) {
-            int level = gpio_get_level((gpio_num_t)i);
-            // Update output state
-            if (level == 1) {
-                ioOutput |= (1ULL << i);
-            } else {
-                ioOutput &= ~(1ULL << i);
+            // Only read GPIO pins that are initialized to avoid invalid readings
+            if (isGpioInitialized((gpio_num_t)i)) {
+                int level = gpio_get_level((gpio_num_t)i);
+                // Only set bits for valid high readings
+                if (level == 1) {
+                    ioOutput |= (1ULL << i);
+                }
+                // No need to clear bits since we reset ioOutput to 0
             }
         }
         printf(GPIO_IN":%d:0x%" PRIx64 "\n",GPIO_NUM_MAX-1, ioOutput);
