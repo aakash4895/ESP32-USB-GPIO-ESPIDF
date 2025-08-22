@@ -48,6 +48,9 @@
 #define GPIO_INTR_GET "INTR_GET"
 #define GPIO_IN "IN_GPIO_LEVEL"
 
+#define TWDT_TIMEOUT_MS         3000
+#define TASK_RESET_PERIOD_MS    2000
+
 TaskHandle_t mainTaskHandle = NULL;
 
 static void appTask(void *pvParameters);
@@ -87,7 +90,6 @@ static void appTask(void *pvParameters)
     char *token = NULL;
     char tag[16];
     uint64_t ioOutput = 0;
-    
     // UART task implementation
     while (1) {
         ioOutput = 0; // Reset output state at the beginning of each cycle
@@ -106,7 +108,7 @@ static void appTask(void *pvParameters)
         // Read data from UART, blocking until data is available for 100ms
         memset(dataBuffer, 0, sizeof(dataBuffer)); // Clear the buffer
         memset(tag, 0, sizeof(tag)); // Clear the tag buffer
-        recv_len = uart_read_bytes(UART_NUM, (uint8_t *)dataBuffer, UART_MAX_READ_LEN - 1, pdMS_TO_TICKS(100));
+        recv_len = uart_read_bytes(UART_NUM, (uint8_t *)dataBuffer, UART_MAX_READ_LEN - 1, pdMS_TO_TICKS(1));
         if (recv_len > 0) {
             ret = ESP_ERR_INVALID_STATE;
             dataBuffer[recv_len] = '\0'; // Null-terminate the string
